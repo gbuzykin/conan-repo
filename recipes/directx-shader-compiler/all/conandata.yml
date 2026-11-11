@@ -1,0 +1,4 @@
+sources:
+  "1.9.2609":
+    url: "https://github.com/microsoft/DirectXShaderCompiler/archive/refs/tags/v1.9.2609.tar.gz"
+    sha256: "05b8e9622f9b147156998e6aab38d71997ec8391038e7302c703e9ca2448dfed"
