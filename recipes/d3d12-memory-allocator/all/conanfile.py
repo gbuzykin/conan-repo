@@ -23,7 +23,7 @@ class D3D12MemoryAllocatorConan(ConanFile):
     }
     default_options = {
         "shared": False,
-        "with_dxheaders": False,
+        "with_dxheaders": True,
     }
 
     def validate(self):
