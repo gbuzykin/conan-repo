@@ -83,7 +83,7 @@ class VulkanLoaderConan(ConanFile):
         if self._is_mingw:
             self.tool_requires("jwasm/2.13")
         if Version(self.version) >= "1.3.234":
-            self.tool_requires("cmake/[>=3.17.2 <4.0]")
+            self.tool_requires("cmake/[>=3.17.2]")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
