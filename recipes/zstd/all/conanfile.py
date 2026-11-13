@@ -27,7 +27,7 @@ class ZstdConan(ConanFile):
         "shared": False,
         "fPIC": True,
         "threading": True,
-        "build_programs": True,
+        "build_programs": False,
     }
 
     def export_sources(self):

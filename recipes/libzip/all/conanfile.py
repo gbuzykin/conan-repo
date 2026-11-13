@@ -30,11 +30,11 @@ class LibZipConan(ConanFile):
     default_options = {
         "shared": False,
         "fPIC": True,
-        "with_bzip2": True,
-        "with_lzma": True,
+        "with_bzip2": False,
+        "with_lzma": False,
         "with_zstd": True,
-        "crypto": "openssl",
-        "tools": True,
+        "crypto": False,
+        "tools": False,
     }
 
     def export_sources(self):
