@@ -1,7 +1,7 @@
 from conan import ConanFile
-from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
-from conan.tools.files import copy, get, rmdir
-from conan.tools.scm import Version
+from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
+from conan.tools.files import export_conandata_patches, apply_conandata_patches, copy, get, rmdir
+from conan.tools.build import check_min_cppstd
 import os
 
 
@@ -19,20 +19,42 @@ class DirectXShaderCompilerConan(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
 
     options = {
+        "with_dxheaders": [True, False],
         "enable_spirv": [True, False],
         "build_dxilconv": [True, False],
     }
 
     default_options = {
-        "enable_spirv": False,
+        "with_dxheaders": True,
+        "enable_spirv": True,
         "build_dxilconv": True,
     }
 
+    def export_sources(self):
+        export_conandata_patches(self)
+
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
+        apply_conandata_patches(self)
+
+    def config_options(self):
+        if self.settings.os != "Windows":
+            del self.options.with_dxheaders
+
+    def configure(self):
+        self.settings.rm_safe("compiler.cppstd")
 
     def layout(self):
         cmake_layout(self, src_folder="src")
+
+    def requirements(self):
+        if self.settings.os != "Windows":
+            self.requires("directx-headers/1.602.0")
+        elif self.options.get_safe("with_dxheaders"):
+            self.requires("directx-headers/[>=1.602 <2]")
+        if self.options.get_safe("enable_spirv"):
+            self.requires("spirv-headers/1.4.363.0")
+            self.requires("spirv-tools/1.4.363.0")
 
     def validate(self):
         if self.settings.os == "Windows":
@@ -46,36 +68,40 @@ class DirectXShaderCompilerConan(ConanFile):
 
     def generate(self):
         tc = CMakeToolchain(self)
-        tc.variables["LLVM_APPEND_VC_REV"] = False
-        tc.variables["LLVM_INCLUDE_TESTS"] = False
-        tc.variables["HLSL_INCLUDE_TESTS"] = False
-        tc.variables["LLVM_INCLUDE_DOCS"] = False
-        tc.variables["LLVM_INCLUDE_EXAMPLES"] = False
-        tc.variables["LLVM_BUILD_TESTS"] = False
-        tc.variables["LLVM_BUILD_EXAMPLES"] = False
-        tc.variables["LLVM_TARGETS_TO_BUILD"] = "None"
-        tc.variables["LLVM_OPTIMIZED_TABLEGEN"] = True
-        tc.variables["HLSL_EMBED_VERSION"] = True
-        tc.variables["HLSL_OFFICIAL_BUILD"] = False
-        tc.variables["HLSL_ENABLE_FIXED_VER"] = False
-        tc.variables["HLSL_SUPPORT_QUERY_GIT_COMMIT_INFO"] = False
+        tc.cache_variables["LLVM_APPEND_VC_REV"] = False
+        tc.cache_variables["LLVM_INCLUDE_TESTS"] = False
+        tc.cache_variables["LLVM_INSTALL_TOOLCHAIN_ONLY"] = True
+        tc.cache_variables["HLSL_INCLUDE_TESTS"] = False
+        tc.cache_variables["HLSL_EMBED_VERSION"] = True
+        tc.cache_variables["HLSL_OFFICIAL_BUILD"] = False
+        tc.cache_variables["HLSL_ENABLE_FIXED_VER"] = True
+        tc.cache_variables["HLSL_SUPPORT_QUERY_GIT_COMMIT_INFO"] = False
+        tc.cache_variables["HLSL_AUTOCRLF"] = False
 
         # SPIR-V codegen option
-        tc.variables["ENABLE_SPIRV_CODEGEN"] = self.options.enable_spirv
-        tc.variables["SPIRV_BUILD_TESTS"] = False
+        tc.cache_variables["ENABLE_SPIRV_CODEGEN"] = self.options.enable_spirv
+        tc.cache_variables["SPIRV_BUILD_TESTS"] = False
 
         # DXILCONV option
-        tc.variables["HLSL_BUILD_DXILCONV"] = self.options.build_dxilconv
+        tc.cache_variables["HLSL_BUILD_DXILCONV"] = self.options.build_dxilconv
 
         # Use C++17 as required
         tc.variables["CMAKE_CXX_STANDARD"] = 17
         tc.variables["CMAKE_CXX_STANDARD_REQUIRED"] = True
 
+        # Use Conan deps instead of external directory
+        tc.variables["DXC_USE_CONAN_DEPS_FOR_EXTERNAL"] = True
+        if self.settings.os == "Windows":
+            tc.variables["DXC_USE_CONAN_DIRECTX_HEADERS"] = self.options.with_dxheaders
+
         tc.generate()
+
+        deps = CMakeDeps(self)
+        deps.generate()
 
     def build(self):
         cmake = CMake(self)
-        cmake.configure()
+        cmake.configure(cli_args=["-C", os.path.join(self.source_folder, "cmake/caches/PredefinedParams.cmake")])
         cmake.build()
 
     def package(self):

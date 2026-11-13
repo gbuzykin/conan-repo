@@ -1,0 +1,80 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 521071800..a30bd602f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -679,10 +679,19 @@ list(APPEND LLVM_COMMON_DEPENDS HCTGen)
+ 
+ add_subdirectory(utils/hct)
+ 
++if(DXC_USE_CONAN_DEPS_FOR_EXTERNAL)
++if(NOT WIN32 OR DXC_USE_CONAN_DIRECTX_HEADERS)
++  find_package(DirectX-Headers REQUIRED)
++  get_target_property(DIRECTX_HEADER_INCLUDE_DIRS Microsoft::DirectX-Headers INTERFACE_INCLUDE_DIRECTORIES)
++  include_directories(${DIRECTX_HEADER_INCLUDE_DIRS})
++  add_compile_definitions(DXC_USE_CONAN_DIRECTX_HEADERS)
++endif()
++else()
+ if(EXISTS "${LLVM_MAIN_SRC_DIR}/external")
+   add_subdirectory(external) # SPIRV change
+ endif()
+ include_directories(AFTER ${DIRECTX_HEADER_INCLUDE_DIR}/directx ${DIRECTX_HEADER_INCLUDE_DIR}/wsl/stubs)
++endif()
+ 
+ # HLSL - Change End
+ 
+diff --git a/include/dxc/Support/D3DReflection.h b/include/dxc/Support/D3DReflection.h
+index aeb004c7b..906d7601c 100644
+--- a/include/dxc/Support/D3DReflection.h
++++ b/include/dxc/Support/D3DReflection.h
+@@ -18,9 +18,17 @@
+ #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+ // Need to instruct non-windows compilers on what an interface is
+ #define interface struct
++#ifdef DXC_USE_CONAN_DIRECTX_HEADERS
++#include <directx/d3d12shader.h>
++#else
+ #include "d3d12shader.h"
++#endif
+ #undef interface
+ #pragma GCC diagnostic pop
+ #else
++#ifdef DXC_USE_CONAN_DIRECTX_HEADERS
++#include <directx/d3d12shader.h>
++#else
+ #include <d3d12shader.h>
+ #endif
++#endif
+diff --git a/tools/clang/lib/SPIRV/CMakeLists.txt b/tools/clang/lib/SPIRV/CMakeLists.txt
+index 5a8fad209..f5e9c47d2 100644
+--- a/tools/clang/lib/SPIRV/CMakeLists.txt
++++ b/tools/clang/lib/SPIRV/CMakeLists.txt
+@@ -43,6 +43,13 @@ add_clang_library(clangSPIRV
+   SPIRV-Tools-opt
+   )
+ 
++if(DXC_USE_CONAN_DEPS_FOR_EXTERNAL)
++find_package(SPIRV-Headers REQUIRED)
++find_package(SPIRV-Tools REQUIRED)
++target_link_libraries(clangSPIRV PUBLIC SPIRV-Headers::SPIRV-Headers)
++target_link_libraries(clangSPIRV PRIVATE SPIRV-Tools-static SPIRV-Tools-opt)
++else()
+ target_include_directories(clangSPIRV PUBLIC ${SPIRV_HEADER_INCLUDE_DIR})
+ target_include_directories(clangSPIRV PRIVATE ${SPIRV_TOOLS_INCLUDE_DIR})
++endif()
+ add_dependencies(clangSPIRV TablegenHLSLOptions)
+diff --git a/tools/clang/unittests/HLSLErrors/HLSLErrors.cpp b/tools/clang/unittests/HLSLErrors/HLSLErrors.cpp
+index 7d11cd751..61755223a 100644
+--- a/tools/clang/unittests/HLSLErrors/HLSLErrors.cpp
++++ b/tools/clang/unittests/HLSLErrors/HLSLErrors.cpp
+@@ -2,7 +2,11 @@
+ // Includes on Windows are highly order dependent.
+ #include <atlbase.h>        // Common COM helpers.
+ #include "dxc/dxcapi.h"     // Be sure to link with dxcompiler.lib.
++#ifdef DXC_USE_CONAN_DIRECTX_HEADERS
++#include <directx/d3d12shader.h>    // Shader reflection.
++#else
+ #include <d3d12shader.h>    // Shader reflection.
++#endif
+ // clang-format on
+ #include <array> // for std::size.
+ 

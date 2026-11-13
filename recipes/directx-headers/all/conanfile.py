@@ -5,6 +5,7 @@ from conan.tools.env import VirtualBuildEnv
 from conan.tools.files import copy, get, rmdir
 from conan.tools.layout import basic_layout
 from conan.tools.meson import Meson, MesonToolchain
+from conan.tools.scm import Version
 import os
 
 
@@ -56,7 +57,10 @@ class DirectXHeadersConan(ConanFile):
     def package_info(self):
         if self.settings.os == "Linux" or self.settings.get_safe("os.subsystem") == "wsl":
             self.cpp_info.includedirs.append(os.path.join("include", "wsl", "stubs"))
-        self.cpp_info.libs = ["d3dx12-format-properties", "DirectX-Guids"]
+        if Version(self.version) < "1.608.2":
+            self.cpp_info.libs = ["DirectX-Guids"]
+        else:
+            self.cpp_info.libs = ["d3dx12-format-properties", "DirectX-Guids"]
         self.cpp_info.set_property("cmake_file_name", "DirectX-Headers")
         self.cpp_info.set_property("cmake_target_name", "Microsoft::DirectX-Headers")
         self.cpp_info.set_property("pkg_config_name", "DirectX-Headers")

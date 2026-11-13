@@ -47,8 +47,7 @@ class SpirvtoolsConan(ConanFile):
         cmake_layout(self, src_folder="src")
 
     def requirements(self):
-        # TODO: Remove `transitive_headers=True` once Diligent-Core no longer needs SPIRV-Tools private headers
-        self.requires(f"spirv-headers/{self.version}", transitive_headers=True)
+        self.requires(f"spirv-headers/{self.version}")
 
     def validate_build(self):
         # newer versions of the library require C++17 for internals
